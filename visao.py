@@ -17,35 +17,23 @@ from cv_bridge import CvBridge, CvBridgeError
 import cormodule
 from math import pi
 import tf
-#import visao_module
+import visao_module
 
 
 batida=0
-#frontal=0
+frontal=0
 v=0.1
 w =(pi/2)
-
-def bateu(dado):
-	global batida
-	batida = dado.data
-
-print("ta rodando o certo")
+w2 =0.3
 bridge = CvBridge()
-
 cv_image = None
-#mediaV = []
-#centroV = []
-
 mediaA = []
 centroA = []
-
 atraso = 0.5E9 # 1 segundo e meio. Em nanossegundos
-
 areaV = 0.0 # Variavel com a area do maior contorno
 areaA = 0.0
 metade=320
-sigma=25
-atraso = 1.5E9 # 1 segundo e meio. Em nanossegundos
+sigma=5
 media = []
 centro = []
 Pi=None
@@ -53,21 +41,23 @@ Pf=None
 posicao=None
 viu_dog = False
 media_dog=None
-# Só usar se os relógios ROS da Raspberry e do Linux desktop estiverem sincronizados. 
-# Descarta imagens que chegam atrasadas demais
-check_delay = False 
+check_delay = False
+
+def bateu(dado):
+	global batida
+	batida = dado.data
+
+def scaneou(dado):
+	global frontal
+	frontal = dado.ranges[0]
 
 # A função a seguir é chamada sempre que chega um novo frame
 def roda_todo_frame(imagem):
 	#print("frame")
 	global cv_image
 	global mediaA
-	#global mediaV
 	global centroA
-	#global centroV
-	global areaV
 	global areaA
-
 	global media
 	global centro
 	global viu_dog
@@ -94,19 +84,17 @@ def roda_todo_frame(imagem):
         # if vc_temp:
         #     viu_circulo = True
 
-
 		for r in resultados:
 		# print(r) - print feito para documentar e entender
-		# o resultado
-			if r[0] == "dog":
+			if r[0] == "cat":
 				viu_dog = True
 				Pi=r[2]
 				Pf=r[3]
 				posicao=(Pi[0],Pi[1],Pf[0],Pf[1])
-				media_dog=(posicao[2]-posicao[0])/2
-				#print("resultados")
+				media_dog=(posicao[0]+((posicao[2]-posicao[0]))/2)
+				#print(r)
+
 		depois = time.clock()
-		cv2.imshow("Camera", cv_image)
 
 	except CvBridgeError as e:
 		print('ex', e)
@@ -138,11 +126,15 @@ if __name__=="__main__":
 	try:
 
 		while not rospy.is_shutdown():
+
 			vel = Twist(Vector3(0,0,0), Vector3(0,0,0))
 			
+			#BUMPERS - Survival
 			if batida != 0:
+
 				if batida == 2:
-					print("bati vou recalcular rota")
+
+					print("bati 2 vou recalcular rota")
 					vel = Twist(Vector3(0,0,0), Vector3(0,0,0))
 					velocidade_saida.publish(vel)
 					rospy.sleep(1.0)
@@ -166,11 +158,11 @@ if __name__=="__main__":
 					batida=0
 
 				elif batida == 1:
-					print("bati vou recalcular rota")
+
+					print("bati 1 vou recalcular rota")
 					vel = Twist(Vector3(0,0,0), Vector3(0,0,0))
 					velocidade_saida.publish(vel)
 					rospy.sleep(1.0)
-
 
 					vel = Twist(Vector3(-v,0,0), Vector3(0,0,0))
 					velocidade_saida.publish(vel)
@@ -191,7 +183,8 @@ if __name__=="__main__":
 					batida=0
 
 				elif batida == 3:
-					print("bati vou recalcular rota")
+
+					print("bati 3 vou recalcular rota")
 					vel = Twist(Vector3(0,0,0), Vector3(0,0,0))
 					velocidade_saida.publish(vel)
 					rospy.sleep(1.0)
@@ -219,7 +212,8 @@ if __name__=="__main__":
 					batida=0
 
 				elif batida == 4:
-					print("bati vou recalcular rota")
+
+					print("bati 4 vou recalcular rota")
 					vel = Twist(Vector3(0,0,0), Vector3(0,0,0))
 					velocidade_saida.publish(vel)
 					rospy.sleep(1.0)
@@ -246,100 +240,68 @@ if __name__=="__main__":
 
 					batida=0
 
-			if viu_dog:
-                #posicao xi, yi , xf, yf so me importa x
+			# DETECTOR DE PROXIMIDADE LASERSCAN - SURVIVAL
+				#if min da lista de todos os angulos for mto prox regir
+
+
+
+
+
+			# DETECTOR MOBILENET - Friendly
+
 				if posicao != None:
-					
-					#media_dog=(posicao[2]-posicao[0])/2
+
 					print(" a media da posicao do dog eh{0}".format(media_dog))
 
-					if media_dog<metade+sigma:
-						vel = Twist(Vector3(0,0,0), Vector3(0,0,-0.3))
+					if media_dog<metade-sigma:
+						vel = Twist(Vector3(0,0,0), Vector3(0,0,-w2))
 						velocidade_saida.publish(vel)
 						rospy.sleep(0.8)
-						print("esquerda para ir ao dog")
-
+						viu_dog=False
+						print("seguindo dog indo pra esquerda")
+						
 					elif media_dog>metade+sigma:
-						vel = Twist(Vector3(0,0,0), Vector3(0,0,0.3))
+						vel = Twist(Vector3(0,0,0), Vector3(0,0,w2))
 						velocidade_saida.publish(vel)
 						rospy.sleep(0.8)
-						viu_cat = False
-						print("direita pra ir ao dog")
-
+						viu_dog = False
+						print("seguindo dog indo pra direita")
+						
 					else:
-						vel = Twist(Vector3(0.4,0,0), Vector3(0,0,0))
+						vel = Twist(Vector3(v,0,0), Vector3(0,0,0))
 						velocidade_saida.publish(vel)
-						rospy.sleep(0.8)
-						viu_cat = False
-						print("Segue Dog")
-						continue
+						rospy.sleep(1)
+						viu_dog = False
+						print("seguindo dog")
 
-                # vel = Twist(Vector3(0.4,0,0), Vector3(0,0,0))
-                # velocidade_saida.publish(vel)
-                # rospy.sleep(0.8)
-                # viu_cat = False
-                # continue
-			else:
-				if (len(mediaA) != 0 and len(centroA) != 0):# and len(mediaA) !=0  and len(centroA) !=0):
-					
-				#if areaA != 0 or areaV != 0:
-					#print("passei")
-					#if areaV > areaA:
-						
-					# 	if mediaV[0] < metade + sigma:
-					# 		vel = Twist(Vector3(0.1,0,0), Vector3(0,0,-0.3))
-					# 		#vel = Twist(Vector3(0,0,0), Vector3(0,0,0))
-					# 		velocidade_saida.publish(vel)
-					# 		rospy.sleep(1.0)
-					# 		print("direitaa vermelho")
-						
-					# 	elif mediaV[0] > metade + sigma:
-					# 		vel = Twist(Vector3(0.1,0,0), Vector3(0,0,0.3))
-					# 		#vel = Twist(Vector3(0,0,0), Vector3(0,0,0))
-					# 		velocidade_saida.publish(vel)
-					# 		rospy.sleep(1.0)
-					# 		print("esquerdaa vermelho")
-						
-					# 	else:
-					# 		vel = Twist(Vector3(0.1,0,0), Vector3(0,0,0))
-					# 		#vel = Twist(Vector3(0,0,0), Vector3(0,0,0))
-					# 		velocidade_saida.publish(vel)
-					# 		rospy.sleep(1.0)
-					# 		print("em frente pro vermelho!")
-					
-					# elif areaV < areaA:
-						
-					if mediaA[0] < metade + sigma:
-						vel = Twist(Vector3(-0.1,0,0), Vector3(0,0,-0.3))
-						#vel = Twist(Vector3(0,0,0), Vector3(0,0,0))
-						velocidade_saida.publish(vel)
-						rospy.sleep(1.0)
-						print("direitaa foge do azul")
-					
-					elif mediaA[0] > metade + sigma:
-						vel = Twist(Vector3(-0.1,0,0), Vector3(0,0,0.3))
-						#vel = Twist(Vector3(0,0,0), Vector3(0,0,0))
-						velocidade_saida.publish(vel)
-						rospy.sleep(1.0)
-						print("esquerdaa run do azul")
-					
-					else:
-						vel = Twist(Vector3(-0.1,0,0), Vector3(0,0,0))
-						#vel = Twist(Vector3(0,0,0), Vector3(0,0,0))
-						velocidade_saida.publish(vel)
-						rospy.sleep(1.0)
-						print("corre do azul berg!")
-				else:
-					vel = Twist(Vector3(0,0,0), Vector3(0,0,0.5))
+			# DETECTOR DE COR - Friendly
+
+			elif areaA>5000:
+
+				if mediaA[0] < metade - sigma:
+					vel = Twist(Vector3(-v,0,0), Vector3(0,0,-w2))
 					velocidade_saida.publish(vel)
 					rospy.sleep(1.0)
-					print("TO VENO NADA!")
-				#print("Média dos vermelhos: {0}, {1}".format(media[0], media[1]))
-				#print("Centro dos vermelhos: {0}, {1}".format(centro[0], centro[1]))
-				#vel = Twist(Vector3(0.2,0,0), Vector3(0,0,0))
-				#print("aqui")
+					print("fugindo do azul desviando para direita")
+				
+				elif mediaA[0] > metade + sigma:
+					vel = Twist(Vector3(-v,0,0), Vector3(0,0,w2))
+					velocidade_saida.publish(vel)
+					rospy.sleep(1.0)
+					print("fugindo do azul desviando para esquerda")
+				
+				else:
+					vel = Twist(Vector3(-v,0,0), Vector3(0,0,0))
+					velocidade_saida.publish(vel)
+					rospy.sleep(1.0)
+					print("fugindo do azul")
+				
+			else:
+
+				vel = Twist(Vector3(0,0,0), Vector3(0,0,w2))
 				velocidade_saida.publish(vel)
 				rospy.sleep(0.1)
+				print("Procurando a acao")
 
 	except rospy.ROSInterruptException:
 	    print("Ocorreu uma exceção com o rospy")
